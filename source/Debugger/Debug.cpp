@@ -47,7 +47,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #define ALLOW_INPUT_LOWERCASE 1
 
 	// See /docs/Debugger_Changelog.txt for full details
-	const int DEBUGGER_VERSION = MAKE_VERSION(2,8,0,9);
+	const int DEBUGGER_VERSION = MAKE_VERSION(2,8,0,12);
 
 
 // Public _________________________________________________________________________________________
@@ -555,8 +555,6 @@ Update_t CmdBookmarkClear (int nArgs)
 {
 	int iBookmark = 0;
 
-	bool bClearAll = false;
-		
 	int iArg;
 	for (iArg = 1; iArg <= nArgs; iArg++ )
 	{
@@ -730,7 +728,7 @@ Update_t CmdProfile (int nArgs)
 {
 	if (! nArgs)
 	{
-		sprintf( g_aArgs[ 1 ].sArg, g_aParameters[ PARAM_RESET ].m_sName );
+		sprintf( g_aArgs[ 1 ].sArg, "%s", g_aParameters[ PARAM_RESET ].m_sName );
 		nArgs = 1;
 	}
 
@@ -938,8 +936,6 @@ Update_t CmdBreakOpcode (int nArgs) // Breakpoint IFF Full-speed!
 		// Show what the current break opcode is
 		wsprintf( sText, TEXT("%s full speed Break on Opcode: None")
 			, sAction
-			, g_iDebugBreakOnOpcode
-			, g_aOpcodes65C02[ g_iDebugBreakOnOpcode ].sMnemonic
 		);
 	else
 		// Show what the current break opcode is
@@ -1180,8 +1176,6 @@ Update_t CmdBreakpointAddSmart (int nArgs)
 		CmdBreakpointAddMem( nArgs );	
 		return UPDATE_BREAKPOINTS;
 	}
-		
-	return UPDATE_CONSOLE_DISPLAY;
 }
 
 
@@ -1195,7 +1189,6 @@ Update_t CmdBreakpointAddReg (int nArgs)
 
 	BreakpointSource_t   iSrc = BP_SRC_REG_PC;
 	BreakpointOperator_t iCmp = BP_OP_EQUAL  ;
-	int nLen = 1;
 
 	bool bHaveSrc = false;
 	bool bHaveCmp = false;
@@ -1204,7 +1197,6 @@ Update_t CmdBreakpointAddReg (int nArgs)
 	int iParamCmp;
 
 	int  nFound;
-	bool bAdded = false;
 
 	int  iArg   = 0;
 	while (iArg++ < nArgs)
@@ -1352,14 +1344,12 @@ Update_t CmdBreakpointAddPC (int nArgs)
 		g_aArgs[1].nValue = g_nDisasmCurAddress;
 	}
 
-	bool bHaveSrc = false;
 	bool bHaveCmp = false;
 
 //	int iParamSrc;
 	int iParamCmp;
 
 	int  nFound = 0;
-	bool bAdded = false;
 
 	int  iArg   = 0;
 	while (iArg++ < nArgs)
@@ -1413,14 +1403,10 @@ Update_t CmdBreakpointAddMem  (int nArgs)
 	BreakpointSource_t   iSrc = BP_SRC_MEM_1;
 	BreakpointOperator_t iCmp = BP_OP_EQUAL  ;
 
-	bool bAdded = false;
-
 	int iArg = 0;
 	
 	while (iArg++ < nArgs)
 	{
-		char *sArg = g_aArgs[iArg].sArg;
-
 		if (g_aArgs[iArg].bType & TYPE_OPERATOR)
 		{
 				return Help_Arg_1( CMD_BREAKPOINT_ADD_MEM );
@@ -2300,7 +2286,7 @@ void ConfigSave_PrepareHeader ( const Parameters_e eCategory, const Commands_e e
 	sprintf( sText, "%s %s = %s\n"
 		, g_aTokens[ TOKEN_COMMENT_EOL  ].sToken
 		, g_aParameters[ PARAM_CATEGORY ].m_sName
-		, g_aParameters[ eCategory ]
+		, g_aParameters[ eCategory ].m_sName
 		);
 	g_ConfigState.PushLine( sText );
 
@@ -3622,7 +3608,8 @@ Update_t CmdDisk ( int nArgs)
 
 	// check for info command
 	int iParam = 0;
-	int nInfoFound = FindParam( g_aArgs[ 1 ].sArg, MATCH_EXACT, iParam, _PARAM_DISK_BEGIN, _PARAM_DISK_END );
+	FindParam( g_aArgs[ 1 ].sArg, MATCH_EXACT, iParam, _PARAM_DISK_BEGIN, _PARAM_DISK_END );
+
 	if (iParam == PARAM_DISK_INFO)
 	{
 		if (nArgs > 2)
@@ -3778,7 +3765,6 @@ Update_t CmdMemoryCompare (int nArgs )
 		return Help_Arg_1( CMD_MEMORY_COMPARE );
 
 	WORD nSrcAddr = g_aArgs[1].nValue;
-	WORD nLenByte = 0;
 	WORD nDstAddr = g_aArgs[3].nValue;
 
 	WORD nSrcSymAddr;
@@ -4264,10 +4250,10 @@ Update_t CmdMemoryLoad (int nArgs)
 	TCHAR sLoadSaveFilePath[ MAX_PATH ];
 	_tcscpy( sLoadSaveFilePath, g_sCurrentDir ); // TODO: g_sDebugDir
 
-	WORD nAddressStart;
-	WORD nAddress2   = 0;
-	WORD nAddressEnd = 0;
-	int  nAddressLen = 0;
+	WORD nAddressStart = 0;
+	WORD nAddress2     = 0;
+	WORD nAddressEnd   = 0;
+	int  nAddressLen   = 0;
 
 	if( pFileType )
 	{
@@ -5591,6 +5577,7 @@ Update_t CmdOutputPrintf (int nArgs)
 						{
 							case '\\':
 								eThis = PS_ESCAPE;
+								break;
 							case '%':
 								eThis = PS_TYPE;
 								break;
@@ -6639,7 +6626,6 @@ Update_t CmdWindowViewCode (int nArgs)
 Update_t CmdWindowViewConsole (int nArgs)
 {
 	return _CmdWindowViewFull( WINDOW_CONSOLE );
-	return UPDATE_ALL;
 }
 
 //===========================================================================
@@ -6661,14 +6647,12 @@ Update_t CmdWindowViewOutput (int nArgs)
 Update_t CmdWindowViewSource (int nArgs)
 {
 	return _CmdWindowViewFull( WINDOW_CONSOLE );
-	return UPDATE_ALL;
 }
 
 //===========================================================================
 Update_t CmdWindowViewSymbols (int nArgs)
 {
 	return _CmdWindowViewFull( WINDOW_CONSOLE );
-	return UPDATE_ALL;
 }
 
 //===========================================================================
@@ -7383,7 +7367,7 @@ void OutputTraceLine ()
 			(unsigned)regs.sp,
 			(char*) sFlags
 			, sDisassembly
-			, sTarget
+			//, sTarget // TODO: Show target?
 		);
 	}
 }
@@ -8930,7 +8914,7 @@ void DebuggerMouseClick( int x, int y )
 				DebugDisplay( UPDATE_DISASM );
 			}
 			else         //      AD 00 00
-			if ((cx > 4) & (cx <= 13))
+			if ((cx > 4) && (cx <= 13))
 			{
 				g_bConfigDisasmOpcodesView ^= true;
 				DebugDisplay( UPDATE_DISASM );
